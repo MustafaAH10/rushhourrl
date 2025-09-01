@@ -1,0 +1,240 @@
+================================================================================
+RUSH HOUR RL TRAINING PIPELINE - Complete Setup and Execution Guide
+================================================================================
+
+This guide provides step-by-step instructions for training a Qwen2.5-3B model on 
+Rush Hour puzzle solving using veRL's GRPO (Group Relative Policy Optimization) algorithm.
+
+📋 OVERVIEW
+================================================================================
+
+Pipeline Components:
+1. Data preparation and format conversion
+2. Prompt consistency updates  
+3. Reward function registration
+4. GRPO training execution
+5. Model evaluation
+
+Training Setup:
+- Model: Qwen/Qwen2.5-3B (4B parameters)
+- Algorithm: GRPO (critic-free RL)
+- Data: 3000 Rush Hour puzzles (151-3150)
+- Split: 2500 train / 500 validation
+- Hardware: Single GPU (optimized for consumer hardware)
+
+🚀 STEP-BY-STEP EXECUTION
+================================================================================
+
+STEP 1: Environment Setup
+--------------------------
+
+# Ensure you're in the project directory
+cd /home/mustafaah/rushhourrl
+
+# Verify data directory exists
+ls data/rl-data/puzzle151  # Should show puzzle_state.json, prompt.txt, solution.txt
+
+# Check Python environment has required packages
+python -c "import torch, transformers, datasets, pandas; print('✅ Core packages available')"
+
+# Verify veRL installation
+python -c "from verl.trainer.main_ppo import main; print('✅ veRL available')"
+
+STEP 2: Update Prompt Consistency (Optional but Recommended)
+---------------------------------------------------------
+
+# Test prompt update on a small range first
+python update_prompts_consistency.py --puzzle_start 151 --puzzle_end 160 --dry_run
+
+# If the dry run looks good, update all training puzzles
+python update_prompts_consistency.py --puzzle_start 151 --puzzle_end 3150
+
+Expected Output:
+📊 Update Results:
+   Total puzzles: 3000
+   ✅ Successfully updated: 3000
+   ❌ Errors: 0
+
+🎯 All prompts updated successfully!
+
+STEP 3: Convert Puzzle Data to veRL Format
+-------------------------------------------
+
+# Convert puzzles to parquet format for veRL training
+python rush_hour_data_converter.py
+
+Expected Output:
+Processing training puzzles 151-2650...
+Processing validation puzzles 2651-3150...
+✓ Training data: 2500 puzzles → data/rushhour_train.parquet
+✓ Validation data: 500 puzzles → data/rushhour_val.parquet
+Training difficulty distribution: {'easy': 833, 'medium': 833, 'hard': 834}
+Validation difficulty distribution: {'easy': 167, 'medium': 167, 'hard': 166}
+
+=== Verification ===
+✓ Training file loaded: 2500 rows
+  Columns: ['prompt', 'data_source', 'puzzle_id', 'difficulty', 'optimal_moves', 'puzzle_state', 'ground_truth', 'grid_size', 'car_position', 'exit_position']
+  Sample prompt length: 1234 chars
+✓ Validation file loaded: 500 rows
+  Columns: ['prompt', 'data_source', 'puzzle_id', 'difficulty', 'optimal_moves', 'puzzle_state', 'ground_truth', 'grid_size', 'car_position', 'exit_position']
+✓ Parquet files are valid!
+
+🎯 Ready for veRL training!
+
+STEP 4: Test Reward Function
+-----------------------------
+
+# Test the reward function integration
+python rushhour_reward.py
+
+Expected Output:
+Testing Rush Hour reward function...
+Test reward: 10.0
+Test completed with reward: 10.0
+
+# Test veRL reward integration
+python -c "from verl.utils.reward_score import default_compute_score; print('✅ Reward function integrated:', default_compute_score('rushhour', '<solution>\nStep 1: C [1,1] -> [1,2]\n</solution>', '', {'puzzle_state': '{}', 'optimal_moves': 1}))"
+
+STEP 5: Launch GRPO Training
+-----------------------------
+
+# Make training script executable
+chmod +x run_rushhour_grpo.sh
+
+# Start training (this will run for several hours)
+./run_rushhour_grpo.sh
+
+Expected Training Output:
+✅ Using training data: /home/mustafaah/data/rushhour_train.parquet
+✅ Using validation data: /home/mustafaah/data/rushhour_val.parquet
+
+[Ray initialization messages...]
+[Training progress with metrics...]
+
+Key metrics to monitor:
+- reward/mean: Should increase over epochs (target: >5.0)  
+- policy/kl_div: Should stay moderate (<0.1)
+- rollout/success_rate: Percentage of valid solutions (target: >80%)
+- validation metrics every 5 epochs
+
+STEP 6: Monitor Training Progress
+---------------------------------
+
+Training logs will show:
+- Epoch progress (50 total epochs)
+- Reward metrics (mean reward should increase)
+- KL divergence (should remain stable)
+- Generation samples (actual puzzle solutions)
+
+Weights & Biases dashboard (if configured):
+- Project: rushhour_grpo_training
+- Experiment: qwen25_3b_rushhour_function_rm
+
+📁 FILE STRUCTURE
+================================================================================
+
+After setup, your directory should contain:
+
+/home/mustafaah/rushhourrl/
+├── data/
+│   ├── rl-data/                          # Original puzzle data
+│   │   ├── puzzle151/...puzzle3150/      # Individual puzzle folders  
+│   ├── rushhour_train.parquet            # Training data (veRL format)
+│   └── rushhour_val.parquet              # Validation data (veRL format)
+├── verl/                                 # veRL framework
+│   └── utils/reward_score/
+│       ├── __init__.py                   # Updated with rushhour integration
+│       └── rushhour.py                   # Rush Hour reward function
+├── validator_4x4.py                     # Your existing validator
+├── rush_hour_data_converter.py          # Data conversion script
+├── update_prompts_consistency.py        # Prompt standardization
+├── rushhour_reward.py                   # Standalone reward function
+├── run_rushhour_grpo.sh                 # Training configuration
+└── RUSHHOUR_RL_PIPELINE_INSTRUCTIONS.txt # This file
+
+🎯 KEY CONFIGURATION DETAILS
+================================================================================
+
+GRPO Algorithm Settings:
+- algorithm.adv_estimator=grpo             # Use GRPO instead of PPO
+- actor_rollout_ref.rollout.n=4           # Generate 4 solutions per puzzle
+- actor_rollout_ref.actor.use_kl_loss=true # KL regularization
+- actor_rollout_ref.actor.kl_loss_coef=0.001 # Suitable for 3B models
+
+Memory Optimization (Single GPU):
+- data.train_batch_size=256               # Global batch size
+- actor_rollout_ref.actor.ppo_mini_batch_size=64 # Update batch size
+- actor_rollout_ref.rollout.gpu_memory_utilization=0.6 # GPU memory limit
+
+Data Configuration:
+- data.max_prompt_length=1024             # Fits Rush Hour prompts
+- data.max_response_length=512            # Sufficient for solutions
+- data.reward_fn_key=data_source          # Uses 'rushhour' for reward dispatch
+
+Reward Structure:
+- Perfect optimal solution: +10.0
+- Near-optimal (≤20% over): +7.0 
+- Reasonable (≤50% over): +4.0
+- Correct but inefficient: +1.0
+- Legal but wrong target: -2.0
+- Illegal moves: -10.0
+- Parse errors: -10.0
+
+🔧 TROUBLESHOOTING
+================================================================================
+
+Common Issues:
+
+1. "Training data not found" error:
+   → Run: python rush_hour_data_converter.py
+
+2. "Validator not available" warning:
+   → Ensure validator_4x4.py is in the project root directory
+
+3. GPU out of memory:
+   → Reduce train_batch_size to 128 in run_rushhour_grpo.sh
+   → Reduce actor_rollout_ref.rollout.n to 2
+
+4. Ray initialization errors:
+   → Check if ray is already running: ray stop
+   → Restart: ray start --head
+
+5. Low reward convergence:
+   → Check reward function with: python rushhour_reward.py
+   → Verify puzzle data integrity: python rush_hour_data_converter.py
+
+6. Import errors for veRL modules:
+   → Ensure PYTHONPATH includes current directory: export PYTHONPATH="$PWD:$PYTHONPATH"
+
+Performance Expectations:
+- Training time: ~8-12 hours on single GPU (RTX 3080/4080 class)
+- Memory usage: ~16-24GB GPU memory for 3B model
+- Convergence: Mean reward >5.0 by epoch 30-40
+
+🏁 POST-TRAINING EVALUATION
+================================================================================
+
+After training completes:
+
+1. Model checkpoints saved in: ./checkpoints/
+2. Logs available in: ./logs/
+3. WandB dashboard shows training curves
+
+To evaluate on your original 150 test puzzles:
+1. Convert test puzzles: python rush_hour_data_converter.py --train_start 1 --train_end 150
+2. Run inference with trained model
+3. Compare against baseline performance
+
+Expected Results:
+- Improved solution success rate on held-out test set
+- More efficient solutions (closer to optimal move count)
+- Better reasoning about piece movements
+
+================================================================================
+🎉 TRAINING COMPLETE! Your model is ready for Rush Hour puzzle solving!
+================================================================================
+
+For questions or issues, check:
+- veRL documentation: https://verl.readthedocs.io/
+- This pipeline documentation
+- Logs and error messages in terminal output
