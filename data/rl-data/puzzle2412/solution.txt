@@ -1,0 +1,14 @@
+Puzzle: puzzle2412
+Puzzle ID: 2412
+Source: new_rl
+Total moves: 4
+Exit position: [2,4]
+Difficulty: hard (0 1x1 blockers, 4 2x1 blockers)
+Coordinate system: [row,col] where [1,1] is top-left
+
+SOLUTION:
+========================================
+Step 1: C [2,1] -> [2,2]
+Step 2: C [2,2] -> [2,3]
+Step 3: H1 [(2, 4), (3, 4)] -> [(3, 4), (4, 4)]
+Step 4: C [2,3] -> [2,4]

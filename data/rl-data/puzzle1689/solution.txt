@@ -1,0 +1,17 @@
+Puzzle: puzzle1689
+Puzzle ID: 1689
+Source: new_rl
+Total moves: 7
+Exit position: [2,4]
+Difficulty: medium (4 1x1 blockers, 1 2x1 blockers)
+Coordinate system: [row,col] where [1,1] is top-left
+
+SOLUTION:
+========================================
+Step 1: B4 [3,1] -> [2,1]
+Step 2: C [4,1] -> [3,1]
+Step 3: C [3,1] -> [3,2]
+Step 4: C [3,2] -> [3,3]
+Step 5: C [3,3] -> [2,3]
+Step 6: B2 [2,4] -> [1,4]
+Step 7: C [2,3] -> [2,4]
