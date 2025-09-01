@@ -84,11 +84,18 @@ def convert_puzzles_to_parquet(
             record = {
                 "prompt": prompt,
                 "data_source": "rushhour",  # For reward function dispatch
+                # Validation data (expected by veRL framework)
+                "reward_model": {
+                    "ground_truth": optimal_solution  # Reference solution for validation
+                },
+                # Reward function data (passed as extra_info to compute_score)
+                "extra_info": {
+                    "puzzle_state": json.dumps(puzzle_state),  # JSON string for reward function
+                    "optimal_moves": puzzle_state["puzzle_info"]["total_moves_in_solution"]  # Integer for comparison
+                },
+                # Additional metadata (optional)
                 "puzzle_id": puzzle_id,
                 "difficulty": puzzle_state["puzzle_info"]["difficulty"],
-                "optimal_moves": puzzle_state["puzzle_info"]["total_moves_in_solution"],
-                "puzzle_state": json.dumps(puzzle_state),  # Serialized for reward function
-                "ground_truth": optimal_solution,  # Reference solution
                 "grid_size": puzzle_state["puzzle_info"]["grid_size"],
                 "car_position": json.dumps(puzzle_state["car_position"]),
                 "exit_position": json.dumps(puzzle_state["exit_position"])
